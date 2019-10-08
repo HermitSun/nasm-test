@@ -18,10 +18,10 @@ SECTION .data
     productTmp  db  "00000000000000000000000000000000000000000", 0H ; save temp product
     product     db  "00000000000000000000000000000000000000000", 0H
     productSum  db  "00000000000000000000000000000000000000000", 0H ; save product + productTmp
-    input       db  "100000000000000000000 -99999999999999999999", 0H  
+    ;input       db  "99999999999999999999 100000000000000000000", 0H  
 
 SECTION .bss
-    ;input   resb    INPUT_LENGTH
+    input   resb    INPUT_LENGTH
 
 SECTION .text
     global  _start
@@ -30,32 +30,19 @@ _start:
     mov     eax, title
     call    sprintLF            ; print title
     mov     eax, prompt
-    call    sprintLF            ; print prompt
+    call    sprint              ; print prompt
     
-    ;mov     edx, INPUT_LENGTH
-    ;mov     ecx, input
-    ;mov     ebx, 0              ; STDIN
-    ;mov     eax, 3              ; sys_read
-    ;int     0x80                ; read input
+    mov     edx, INPUT_LENGTH
+    mov     ecx, input
+    mov     ebx, 0              ; STDIN
+    mov     eax, 3              ; sys_read
+    int     0x80                ; read input
     
     jmp     split               ; call split()
     
 splitFinished:
     pop     esi                 ; restore esi
     pop     eax                 ; restore str
-    
-    push    eax
-    mov     eax, x
-    call    sprintLF
-    mov     eax, y
-    call    sprintLF
-    xor     eax, eax
-    mov     al, byte[xIsNegative]
-    call    iprintLF
-    xor     eax, eax
-    mov     al, byte[yIsNegative]
-    call    iprintLF
-    pop     eax                 ; // print x,y
     
 adder:    
     mov     esi, NUM_LENGTH     ; pointer=20
@@ -329,7 +316,7 @@ split:
     push    eax                 ; save eax
     push    esi                 ; save esi
     dec     eax                 ; --str (point to the last char of the second valid part)
-    mov     esi, NUM_LENGTH     ; pointer=20 (point to the last char of y)
+    mov     esi, NUM_LENGTH + 1 ; pointer=21 (point to the last char of y, plus an '\n')
 .dealYLoop:    
     cmp     ecx, 0              ; while(count>0)
     je      splitFinished
