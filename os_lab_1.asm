@@ -7,21 +7,27 @@ SECTION .data
     P_ACTUAL_LENGTH equ 40  ; actual product length
     PRODUCT_LENGTH  equ 41  ; max product length
     INPUT_LENGTH    equ 45  ; max length = 2 * (1 + 21) + ' ' = 45
+    UNSIGNED_NEG    equ 128 ; when convert char to int, neg will be converted to positive(-1->255)
     ; variables
-    title       db  "OS_LAB_1  sample big number add & mul", 0H
-    prompt      db  "Please input x and y: ", 0H
-    x           db  "000000000000000000000", 0H
-    y           db  "000000000000000000000", 0H
-    xIsNegative db  0
-    yIsNegative db  0   
-    sum         db  "000000000000000000000", 0H         
-    productTmp  db  "00000000000000000000000000000000000000000", 0H ; save temp product
-    product     db  "00000000000000000000000000000000000000000", 0H
-    productSum  db  "00000000000000000000000000000000000000000", 0H ; save product + productTmp
-    ;input       db  "99999999999999999999 100000000000000000000", 0H  
+    title           db  "OS_LAB_1  sample big number add & mul", 0H
+    prompt          db  "Please input x and y: ", 0H
+    x               db  "000000000000000000000", 0H
+    y               db  "000000000000000000000", 0H
+    larger          db  "000000000000000000000", 0H
+    smaller         db  "000000000000000000000", 0H
+    result          db  "000000000000000000000", 0H
+    xIsNegative     db  0   ; false
+    yIsNegative     db  0   ; false
+    resIsNegative   db  0   ; false
+    sum             db  "000000000000000000000", 0H         
+    productTmp      db  "00000000000000000000000000000000000000000", 0H ; save temp product
+    product         db  "00000000000000000000000000000000000000000", 0H
+    productSum      db  "00000000000000000000000000000000000000000", 0H ; save product + productTmp
+    ;input           db  "99999999999999999999 100000000000000000000", 0H
+    input           db  "9999 -10000", 0H
 
 SECTION .bss
-    input   resb    INPUT_LENGTH
+    ;input   resb    INPUT_LENGTH
 
 SECTION .text
     global  _start
@@ -32,17 +38,25 @@ _start:
     mov     eax, prompt
     call    sprint              ; print prompt
     
-    mov     edx, INPUT_LENGTH
-    mov     ecx, input
-    mov     ebx, 0              ; STDIN
-    mov     eax, 3              ; sys_read
-    int     0x80                ; read input
+    ;mov     edx, INPUT_LENGTH
+    ;mov     ecx, input
+    ;mov     ebx, 0              ; STDIN
+    ;mov     eax, 3              ; sys_read
+    ;int     0x80                ; read input
     
     jmp     split               ; call split()
     
 splitFinished:
     pop     esi                 ; restore esi
     pop     eax                 ; restore str
+        
+    push    eax
+    push    ebx
+    mov     eax, x
+    mov     ebx, y
+    call    largerAbs           ; find larger
+    pop     ebx
+    pop     eax
     
 adder:    
     mov     esi, NUM_LENGTH     ; pointer=20
@@ -316,7 +330,7 @@ split:
     push    eax                 ; save eax
     push    esi                 ; save esi
     dec     eax                 ; --str (point to the last char of the second valid part)
-    mov     esi, NUM_LENGTH + 1 ; pointer=21 (point to the last char of y, plus an '\n')
+    mov     esi, NUM_LENGTH ; pointer=21 (point to the last char of y, plus an '\n')
 .dealYLoop:    
     cmp     ecx, 0              ; while(count>0)
     je      splitFinished
@@ -377,4 +391,146 @@ sprintWithoutStartZero:
     pop     ecx                 ; pop '0'
     pop     ecx                 ; restore ecx
     pop     esi
+    ret
+    
+;------------
+; void largerAbs(const char* eax, const char* ebx)
+; get the abs larger one
+largerAbs:
+    push    ecx
+    push    esi
+    push    edi
+    
+    mov     esi, eax            ; char* esi = eax
+    mov     edi, ebx            ; char* edi = ebx
+    
+.endLoop:
+    cmp     byte[esi], 0H
+    je      .equalFinished      ; while(*esi != '\0')
+    xor     ecx, ecx
+    mov     cl, byte[esi]    
+    sub     cl, byte[edi]
+    
+    cmp     ecx, 0
+    jnz     .largerOrSmaller    ; if((*esi - *edi) == 0)
+    inc     esi                 ; ++esi
+    inc     edi                 ; ++edi
+    jmp     .endLoop
+.largerOrSmaller:
+    cmp     ecx, UNSIGNED_NEG   ; here is 2^7, cause used unsigned cl
+    jb      .larger             ; if((*esi - *edi) < 0)
+    cmp     byte[yIsNegative], 0
+    je      .smallerEndLoop     ; if(yIsNegative)
+    mov     byte[resIsNegative], 1; resultIsNegative = true
+.smallerEndLoop:
+    call    copyYToLarger
+    call    copyXToSmaller
+    jmp     .finished
+.larger:
+    cmp     byte[xIsNegative], 0
+    je      .largerEndLoop     ; if(xIsNegative)
+    mov     byte[resIsNegative], 1; resultIsNegative = true
+.largerEndLoop:
+    call    copyXToLarger
+    call    copyYToSmaller
+    jmp     .finished
+.equalFinished:
+    call    copyXToLarger
+    call    copyYToSmaller
+.finished:
+    pop     edi
+    pop     esi
+    pop     ecx
+    ret
+    
+;------------
+; void copyXToLarger()
+; copy x to larger
+copyXToLarger:
+    push    eax
+    push    ebx
+    push    ecx
+    mov     ecx, NUM_STR_LENGTH ; counter=21
+.nextchar:
+    cmp     ecx, 0
+    je      .finished           ; while(count>=0)
+    mov     eax, x
+    mov     bl, byte[eax + ecx]
+    mov     eax, larger
+    mov     byte[eax + ecx], bl
+    dec     ecx                 ; --counter
+    jmp     .nextchar
+.finished:
+    pop     ecx
+    pop     ebx
+    pop     eax
+    ret
+
+;------------
+; void copyYToLarger()
+; copy y to larger
+copyYToLarger:
+    push    eax
+    push    ebx
+    push    ecx
+    mov     ecx, NUM_STR_LENGTH ; counter=21
+.nextchar:
+    cmp     ecx, 0
+    je      .finished           ; while(count>=0)
+    mov     eax, y
+    mov     bl, byte[eax + ecx]
+    mov     eax, larger
+    mov     byte[eax + ecx], bl
+    dec     ecx                 ; --counter
+    jmp     .nextchar
+.finished:
+    pop     ecx
+    pop     ebx
+    pop     eax
+    ret
+    
+;------------
+; void copyXToSmaller()
+; copy x to smaller
+copyXToSmaller:
+    push    eax
+    push    ebx
+    push    ecx
+    mov     ecx, NUM_STR_LENGTH ; counter=21
+.nextchar:
+    cmp     ecx, 0
+    je      .finished           ; while(count>=0)
+    mov     eax, x
+    mov     bl, byte[eax + ecx]
+    mov     eax, smaller
+    mov     byte[eax + ecx], bl
+    dec     ecx                 ; --counter
+    jmp     .nextchar
+.finished:
+    pop     ecx
+    pop     ebx
+    pop     eax
+    ret
+    
+;------------
+; void copyYToSmaller()
+; copy y to smaller
+copyYToSmaller:
+    push    eax
+    push    ebx
+    push    ecx
+    mov     ecx, NUM_STR_LENGTH ; counter=21
+.nextchar:
+    cmp     ecx, 0
+    je      .finished           ; while(count>=0)
+    mov     eax, y
+    mov     bl, byte[eax + ecx]
+    mov     eax, smaller
+    mov     byte[eax + ecx], bl
+    dec     ecx                 ; --counter
+    jmp     .nextchar
+.finished:
+    pop     ecx
+    pop     ebx
+    pop     eax
     ret
