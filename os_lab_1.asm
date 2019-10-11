@@ -24,10 +24,9 @@ SECTION .data
     product         db  "00000000000000000000000000000000000000000", 0H
     productSum      db  "00000000000000000000000000000000000000000", 0H ; save product + productTmp
     ;input           db  "99999999999999999999 100000000000000000000", 0H
-    input           db  "9999 -10000", 0H
 
 SECTION .bss
-    ;input   resb    INPUT_LENGTH
+    input   resb    INPUT_LENGTH
 
 SECTION .text
     global  _start
@@ -38,11 +37,11 @@ _start:
     mov     eax, prompt
     call    sprint              ; print prompt
     
-    ;mov     edx, INPUT_LENGTH
-    ;mov     ecx, input
-    ;mov     ebx, 0              ; STDIN
-    ;mov     eax, 3              ; sys_read
-    ;int     0x80                ; read input
+    mov     edx, INPUT_LENGTH
+    mov     ecx, input
+    mov     ebx, 0              ; STDIN
+    mov     eax, 3              ; sys_read
+    int     0x80                ; read input
     
     jmp     split               ; call split()
     
@@ -58,7 +57,45 @@ splitFinished:
     pop     ebx
     pop     eax
     
-adder:    
+    push    eax
+    push    ebx
+    xor     eax, eax
+    mov     ebx, xIsNegative
+    mov     al, byte[ebx]       ; eax = xIsNegative
+    push    eax
+    xor     ebx, ebx
+    mov     eax, yIsNegative
+    mov     bl, byte[eax]       ; ebx = yIsNegative
+    pop     eax
+    xor     eax, ebx            ; xIsNegative ^ yIsNegative
+    cmp     eax, 1
+    jne     adder               ; if(xIsNegative ^ yIsNegative)
+    mov     eax, larger
+    mov     ebx, smaller
+    call    minus               ; minus(larger, smaller)
+    
+    push    eax
+    push    ebx
+    mov     eax, resIsNegative
+    xor     ebx, ebx
+    mov     bl, byte[eax]
+    cmp     ebx, 0              ; if(resIsNegative)
+    je      directlyPrintDiff
+    mov     eax, '-'
+    push    eax
+    mov     eax, esp
+    call    sprint              ; print '-'
+    pop     eax
+directlyPrintDiff:
+    mov     eax, result
+    call    sprintWithoutStartZero
+    pop     ebx
+    pop     eax
+    
+    jmp     prepareToMultiply
+    
+adder:
+    pop     eax                 ; restore eax
     mov     esi, NUM_LENGTH     ; pointer=20
     mov     edi, NUM_STR_LENGTH ; counter=21
     mov     ecx, 0              ; carry=0
@@ -98,9 +135,27 @@ adderLoop:
     jmp     adderLoop
     
 addFinished:
+    xor     eax, eax
+    mov     ebx, xIsNegative
+    mov     al, byte[ebx]       ; eax = xIsNegative
+    push    eax
+    xor     ebx, ebx
+    mov     eax, yIsNegative
+    mov     bl, byte[eax]       ; ebx = yIsNegative
+    pop     eax
+    and     eax, ebx            ; xIsNegative && yIsNegative
+    cmp     eax, 1
+    jne     printSum
+    mov     eax, '-'
+    push    eax
+    mov     eax, esp
+    call    sprint              ; print '-'
+    pop     eax
+printSum:
     mov     eax, sum
     call    sprintWithoutStartZero
     
+prepareToMultiply:
     mov     eax, NUM_STR_LENGTH ; YCount
     mov     ecx, 0              ; carry = 0
 multiply:
@@ -264,10 +319,27 @@ multiplyFinished:
     xor     al, bl    
     cmp     eax, 0              ; if(xIsNegative ^ yIsNegative)
     je     .finished
+    
+    push    eax
+    push    ebx
+    
+    mov     eax, resIsNegative
+    mov     ebx, eax
+    mov     byte[eax], 0        ; reset flag
+    
+    mov     eax, product
+    call    resultIsZero
+    xor     eax, eax
+    mov     ebx, resIsNegative
+    mov     al, byte[ebx]    
+    cmp     eax, 0
+    je      .finished           ; if(resIsNegative)
     mov     eax, '-'
     push    eax
     mov     eax, esp
     call    sprint              ; print '-'
+    
+    pop     ebx
     pop     eax
 .finished:
     mov     eax, product
@@ -330,7 +402,7 @@ split:
     push    eax                 ; save eax
     push    esi                 ; save esi
     dec     eax                 ; --str (point to the last char of the second valid part)
-    mov     esi, NUM_LENGTH ; pointer=21 (point to the last char of y, plus an '\n')
+    mov     esi, NUM_STR_LENGTH ; pointer=21 (point to the last char of y, plus an '\n')
 .dealYLoop:    
     cmp     ecx, 0              ; while(count>0)
     je      splitFinished
@@ -450,10 +522,10 @@ copyXToLarger:
     push    eax
     push    ebx
     push    ecx
-    mov     ecx, NUM_STR_LENGTH ; counter=21
+    mov     ecx, NUM_LENGTH     ; counter=20
 .nextchar:
     cmp     ecx, 0
-    je      .finished           ; while(count>=0)
+    jl      .finished           ; while(count>=0)
     mov     eax, x
     mov     bl, byte[eax + ecx]
     mov     eax, larger
@@ -473,10 +545,10 @@ copyYToLarger:
     push    eax
     push    ebx
     push    ecx
-    mov     ecx, NUM_STR_LENGTH ; counter=21
+    mov     ecx, NUM_LENGTH     ; counter=20
 .nextchar:
     cmp     ecx, 0
-    je      .finished           ; while(count>=0)
+    jl      .finished           ; while(count>=0)
     mov     eax, y
     mov     bl, byte[eax + ecx]
     mov     eax, larger
@@ -496,10 +568,10 @@ copyXToSmaller:
     push    eax
     push    ebx
     push    ecx
-    mov     ecx, NUM_STR_LENGTH ; counter=21
+    mov     ecx, NUM_LENGTH     ; counter=20
 .nextchar:
     cmp     ecx, 0
-    je      .finished           ; while(count>=0)
+    jl      .finished           ; while(count>=0)
     mov     eax, x
     mov     bl, byte[eax + ecx]
     mov     eax, smaller
@@ -519,10 +591,10 @@ copyYToSmaller:
     push    eax
     push    ebx
     push    ecx
-    mov     ecx, NUM_STR_LENGTH ; counter=21
+    mov     ecx, NUM_LENGTH     ; counter=20
 .nextchar:
     cmp     ecx, 0
-    je      .finished           ; while(count>=0)
+    jl      .finished           ; while(count>=0)
     mov     eax, y
     mov     bl, byte[eax + ecx]
     mov     eax, smaller
@@ -533,4 +605,96 @@ copyYToSmaller:
     pop     ecx
     pop     ebx
     pop     eax
+    ret
+    
+;------------
+; void minus(char* eax, char* ebx)
+; store (eax - ebx) to result
+minus:
+    push    ecx
+    push    edx
+    push    esi
+    push    edi
+    
+    mov     ecx, NUM_LENGTH     ; ecx = 20
+    xor     edx, edx            ; edx = 0
+.minusLoop:
+    cmp     ecx, 0
+    jl      .finished           ; while(ecx >= 0)
+
+    push    eax
+    push    ebx
+    add     eax, ecx
+    call    atoi
+    mov     esi, eax            ; esi = *(eax + ecx) - 0x30
+    mov     eax, ebx
+    add     eax, ecx
+    call    atoi
+    mov     edi, eax            ; edi = *(ebx + ecx) - 0x30
+    pop     ebx
+    pop     eax
+    
+    cmp     edx, 1
+    jne     .continueLoop
+    dec     esi                 ; --esi
+    
+.continueLoop:
+    sub     esi, edi            ; esi - edi       
+    cmp     esi, 9
+    ja      .esiLessThanEdi     ; if(esi >= edi)
+    
+    add     esi, 0x30           ; esi to ASCII
+    xor     edx, edx            ; edx = 0   
+    push    eax
+    push    ebx
+    mov     ebx, esi
+    mov     eax, result
+    add     eax, ecx
+    mov     byte[eax], bl       ; *(result + ecx) = esi
+    pop     ebx
+    pop     eax
+    jmp     .nextLoop
+    
+.esiLessThanEdi:
+    mov     edx, 1              ; borrowed
+    add     esi, 0x30
+    add     esi, 10             ; carry
+    push    eax
+    push    ebx
+    mov     ebx, esi
+    mov     eax, result
+    add     eax, ecx
+    mov     byte[eax], bl       ; *(result + ecx) = esi + 10
+    pop     ebx
+    pop     eax
+    
+.nextLoop:
+    dec     ecx                 ; --ecx
+    jmp     .minusLoop
+.finished:
+    pop     edi
+    pop     esi
+    pop     edx
+    pop     ecx
+    ret
+    
+;---------
+; void resultIsZero(const char* eax)
+; judge whether the str is all zero
+resultIsZero:
+    push    ebx
+    mov     ebx, eax
+.nextchar:
+    cmp     byte[eax], 0H       
+    je      .exit               ; while(*eax != '\0')
+    cmp     byte[eax], 0x30     
+    jne     .finished           ; if(*eax == '0')
+    inc     eax
+    jmp     .nextchar
+.exit:
+    xor     ebx, ebx
+    mov     ebx, resIsNegative
+    mov     byte[resIsNegative], 0
+.finished:
+    pop     ebx
     ret
