@@ -6,7 +6,7 @@ SECTION .data
     NUM_STR_LENGTH  equ 21  ; max number string length (40 + '\0')
     P_ACTUAL_LENGTH equ 40  ; actual product length
     PRODUCT_LENGTH  equ 41  ; max product length
-    INPUT_LENGTH    equ 45  ; max length = 2 * (1 + 21) + ' ' = 45
+    INPUT_LENGTH    equ 46  ; max length = 2 * (1 + 21) + ' ' = 45
     UNSIGNED_NEG    equ 128 ; when convert char to int, neg will be converted to positive(-1->255)
     ; variables
     title           db  "OS_LAB_1  sample big number add & mul", 0H
@@ -23,7 +23,8 @@ SECTION .data
     productTmp      db  "00000000000000000000000000000000000000000", 0H ; save temp product
     product         db  "00000000000000000000000000000000000000000", 0H
     productSum      db  "00000000000000000000000000000000000000000", 0H ; save product + productTmp
-    ;input           db  "99999999999999999999 100000000000000000000", 0H
+    ;input           db  "99999999999999999999 -100000000000000000000", 0H
+    ;input           db  "-100000000000000000000 -100000000000000000000", 0H
 
 SECTION .bss
     input   resb    INPUT_LENGTH
