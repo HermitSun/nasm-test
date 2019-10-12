@@ -315,22 +315,26 @@ multiplyFinished:
     xor     eax, eax
     mov     al, byte[xIsNegative]
     xor     ebx, ebx
-    mov     bl, byte[yIsNegative]
+    mov     bl, byte[yIsNegative]    
     xor     al, bl    
     cmp     eax, 0              ; if(xIsNegative ^ yIsNegative)
     je     .finished
     
     push    eax
-    push    ebx
+    push    ebx       
     
-    mov     eax, resIsNegative
-    mov     ebx, eax
-    mov     byte[eax], 0        ; reset flag
+    xor     eax, eax
+    mov     al, byte[xIsNegative]
+    xor     ebx, ebx
+    mov     bl, byte[yIsNegative]    
+    xor     al, bl    
+    mov     ebx, resIsNegative
+    mov     byte[resIsNegative], al; reset flag
     
     mov     eax, product
     call    resultIsZero
-    xor     eax, eax
     mov     ebx, resIsNegative
+    xor     eax, eax
     mov     al, byte[ebx]    
     cmp     eax, 0
     je      .finished           ; if(resIsNegative)
