@@ -9,7 +9,7 @@ DispStr:
     mov cx,10
     mov ax,0x1301
     mov bx,0x000C
-    mov dx,0x0200
+    mov dx,0x0000
     int 10H
     ret
 BootMessage:        db "Hello, OS!"
